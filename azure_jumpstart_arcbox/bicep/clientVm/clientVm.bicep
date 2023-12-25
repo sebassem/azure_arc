@@ -160,6 +160,7 @@ resource vmDisk 'Microsoft.Compute/disks@2023-04-02' = if (flavor != 'DevOps') {
       createOption: 'Empty'
     }
     diskIOPSReadWrite: 4000
+    diskMBpsReadWrite: 400
     diskSizeGB: flavor == 'ITPro' || flavor == 'Full' ? 350 : 250
   }
 }
