@@ -146,6 +146,9 @@ resource publicIpAddress 'Microsoft.Network/publicIpAddresses@2022-01-01' = if (
 resource vmDisk 'Microsoft.Compute/disks@2023-04-02' = if (flavor != 'DevOps') {
   location: location
   name: '${vmName}-VMsDisk'
+  zones: [
+    '1'
+  ]
   sku: {
     name: vmsDiskSku
   }
