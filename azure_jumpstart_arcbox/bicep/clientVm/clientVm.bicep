@@ -72,6 +72,9 @@ param stagingStorageAccountName string
 @description('Name for the environment Azure Log Analytics workspace')
 param workspaceName string
 
+@description('The SKU of the VMs disk')
+param vmsDiskSku string = 'PremiumV2_LRS'
+
 @description('The base URL used for accessing artifacts and automation artifacts.')
 param templateBaseUrl string
 
@@ -140,6 +143,20 @@ resource publicIpAddress 'Microsoft.Network/publicIpAddresses@2022-01-01' = if (
   }
 }
 
+resource vmDisk 'Microsoft.Compute/disks@2023-04-02' = if (flavor != 'DevOps') {
+  location: location
+  name: '${vmName}-VMsDisk'
+  sku: {
+    name: vmsDiskSku
+  }
+  properties: {
+    creationData: {
+      createOption: 'Empty'
+    }
+    diskSizeGB: flavor == 'ITPro' || flavor == 'Full' ? 350 : 250
+  }
+}
+
 resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
   name: vmName
   location: location
@@ -156,8 +173,17 @@ resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
         managedDisk: {
           storageAccountType: osDiskType
         }
-        diskSizeGB: 1024
+        diskSizeGB: 600
       }
+      dataDisks: (flavor != 'DevOps') ? [
+        {
+          createOption: 'Attach'
+          lun: 0
+          managedDisk: {
+            id: vmDisk.id
+          }
+        }
+      ] : null
       imageReference: {
         publisher: 'MicrosoftWindowsServer'
         offer: 'WindowsServer'

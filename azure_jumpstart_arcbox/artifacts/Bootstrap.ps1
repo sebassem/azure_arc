@@ -71,12 +71,28 @@ param (
 
 [System.Environment]::SetEnvironmentVariable('ArcBoxDir', "C:\ArcBox", [System.EnvironmentVariableTarget]::Machine)
 
+
+# Formatting VMs disk
+if ($flavor -ne "DevOps") {
+    $disk = (Get-Disk | Where-Object partitionstyle -eq 'raw')[0]
+    $driveLetter = "F"
+    $label = "VMsDisk"
+    $disk | Initialize-Disk -PartitionStyle MBR -PassThru | `
+            New-Partition -UseMaximumSize -DriveLetter $driveLetter | `
+            Format-Volume -FileSystem NTFS -NewFileSystemLabel $label -Confirm:$false -Force
+}
+
 # Creating ArcBox path
 Write-Output "Creating ArcBox path"
 $Env:ArcBoxDir = "C:\ArcBox"
 $Env:ArcBoxDscDir = "$Env:ArcBoxDir\DSC"
 $Env:ArcBoxLogsDir = "$Env:ArcBoxDir\Logs"
-$Env:ArcBoxVMDir = "$Env:ArcBoxDir\Virtual Machines"
+if($flavor -ne "DevOps"){
+    $Env:ArcBoxVMDir = "F:\Virtual Machines"
+}
+else {
+    $Env:ArcBoxVMDir = "$Env:ArcBoxDir\Virtual Machines"
+}
 $Env:ArcBoxKVDir = "$Env:ArcBoxDir\KeyVault"
 $Env:ArcBoxGitOpsDir = "$Env:ArcBoxDir\GitOps"
 $Env:ArcBoxIconDir = "$Env:ArcBoxDir\Icons"
@@ -101,7 +117,7 @@ Start-Transcript -Path $Env:ArcBoxLogsDir\Bootstrap.log
 
 $ErrorActionPreference = 'SilentlyContinue'
 
-if ([bool]$vmAutologon){
+if ([bool]$vmAutologon) {
 
     Write-Host "Configuring VM Autologon"
 
@@ -263,28 +279,27 @@ New-Item -path alias:azdata -value 'C:\Program Files (x86)\Microsoft SDKs\Azdata
 
 # Disable Microsoft Edge sidebar
 $RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
-$Name         = 'HubsSidebarEnabled'
-$Value        = '00000000'
+$Name = 'HubsSidebarEnabled'
+$Value = '00000000'
 # Create the key if it does not exist
 If (-NOT (Test-Path $RegistryPath)) {
-  New-Item -Path $RegistryPath -Force | Out-Null
+    New-Item -Path $RegistryPath -Force | Out-Null
 }
 New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
 
 # Disable Microsoft Edge first-run Welcome screen
 $RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
-$Name         = 'HideFirstRunExperience'
-$Value        = '00000001'
+$Name = 'HideFirstRunExperience'
+$Value = '00000001'
 # Create the key if it does not exist
 If (-NOT (Test-Path $RegistryPath)) {
-  New-Item -Path $RegistryPath -Force | Out-Null
+    New-Item -Path $RegistryPath -Force | Out-Null
 }
 New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
 
 # Change RDP Port
 Write-Host "RDP port number from configuration is $rdpPort"
-if (($rdpPort -ne $null) -and ($rdpPort -ne "") -and ($rdpPort -ne "3389"))
-{
+if (($rdpPort -ne $null) -and ($rdpPort -ne "") -and ($rdpPort -ne "3389")) {
     Write-Host "Configuring RDP port number to $rdpPort"
     $TSPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
     $RDPTCPpath = $TSPath + '\Winstations\RDP-Tcp'
@@ -293,22 +308,19 @@ if (($rdpPort -ne $null) -and ($rdpPort -ne "") -and ($rdpPort -ne "3389"))
     # RDP port
     $portNumber = (Get-ItemProperty -Path $RDPTCPpath -Name 'PortNumber').PortNumber
     Write-Host "Current RDP PortNumber: $portNumber"
-    if (!($portNumber -eq $rdpPort))
-    {
-      Write-Host Setting RDP PortNumber to $rdpPort
-      Set-ItemProperty -Path $RDPTCPpath -name 'PortNumber' -Value $rdpPort
-      Restart-Service TermService -force
+    if (!($portNumber -eq $rdpPort)) {
+        Write-Host Setting RDP PortNumber to $rdpPort
+        Set-ItemProperty -Path $RDPTCPpath -name 'PortNumber' -Value $rdpPort
+        Restart-Service TermService -force
     }
 
     #Setup firewall rules
-    if ($rdpPort -eq 3389)
-    {
-      netsh advfirewall firewall set rule group="remote desktop" new Enable=Yes
+    if ($rdpPort -eq 3389) {
+        netsh advfirewall firewall set rule group="remote desktop" new Enable=Yes
     }
-    else
-    {
-      $systemroot = get-content env:systemroot
-      netsh advfirewall firewall add rule name="Remote Desktop - Custom Port" dir=in program=$systemroot\system32\svchost.exe service=termservice action=allow protocol=TCP localport=$RDPPort enable=yes
+    else {
+        $systemroot = get-content env:systemroot
+        netsh advfirewall firewall add rule name="Remote Desktop - Custom Port" dir=in program=$systemroot\system32\svchost.exe service=termservice action=allow protocol=TCP localport=$RDPPort enable=yes
     }
 
     Write-Host "RDP port configuration complete."
