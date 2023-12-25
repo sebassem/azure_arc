@@ -45,7 +45,7 @@ param spnTenantId string
 param azdataUsername string = 'arcdemo'
 
 @secure()
-param azdataPassword string = 'ArcPassword123!!'
+param azdataPassword string
 param acceptEula string = 'yes'
 param registryUsername string = 'registryUser'
 
