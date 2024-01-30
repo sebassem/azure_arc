@@ -19,7 +19,7 @@ param windowsAdminPassword string
 param windowsOSVersion string = '2022-datacenter-g2'
 
 @description('Location for all resources.')
-param location string = resourceGroup().location
+param location string = deployment().location
 
 @description('Choice to deploy Bastion to connect to the client VM')
 param deployBastion bool
@@ -67,6 +67,11 @@ param resourceTags object = {
   Project: 'jumpstart_azure_aio'
 }
 
+@minLength(1)
+@maxLength(77)
+@description('Prefix for resource group, i.e. {name}-rg')
+param envName string = 'aio'
+
 @maxLength(5)
 @description('Random GUID')
 param namingGuid string = toLower(substring(newGuid(), 0, 5))
@@ -108,216 +113,61 @@ param eventHubConsumerGroupNamePl string = 'cgadxpl${namingGuid}'
 param rdpPort string = '3389'
 
 var templateBaseUrl = 'https://raw.githubusercontent.com/${githubAccount}/azure_arc/${githubBranch}/azure_edge_iot_ops_jumpstart/aio_manufacturing/bicep/'
-var publicIpAddressName = '${vmName}-PIP'
-var networkInterfaceName = '${vmName}-NIC'
-var bastionSubnetName = 'AzureBastionSubnet'
-var subnetRef = resourceId('Microsoft.Network/virtualNetworks/subnets', virtualNetworkName, subnetName)
-var bastionSubnetRef = resourceId('Microsoft.Network/virtualNetworks/subnets', virtualNetworkName, bastionSubnetName)
-var osDiskType = 'Premium_LRS'
-var subnetAddressPrefix = '10.1.0.0/24'
-var addressPrefix = '10.1.0.0/16'
-var bastionName = concat(bastionHostName)
-var bastionSubnetIpPrefix = '10.1.1.64/26'
-var PublicIPNoBastion = {
-  id: publicIpAddress.id
-}
 
-resource networkInterface 'Microsoft.Network/networkInterfaces@2022-07-01' = {
-  name: networkInterfaceName
-  location: location
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'ipconfig1'
-        properties: {
-          subnet: {
-            id: subnetRef
-          }
-          privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: ((!deployBastion) ? PublicIPNoBastion : null)
-        }
-      }
-    ]
-    networkSecurityGroup: {
-      id: networkSecurityGroup.id
-    }
-  }
-}
+targetScope = 'subscription'
 
-resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2019-02-01' = {
-  name: networkSecurityGroupName
+resource rg 'Microsoft.Resources/resourceGroups@2020-06-01' = {
+  name: '${envName}-rg'
   location: location
 }
 
-resource networkSecurityGroupName_allow_RDP_3389 'Microsoft.Network/networkSecurityGroups/securityRules@2022-05-01' = if (deployBastion) {
-  parent: networkSecurityGroup
-  name: 'allow_RDP_3389'
-  properties: {
-    priority: 1001
-    protocol: 'TCP'
-    access: 'Allow'
-    direction: 'Inbound'
-    sourceAddressPrefix: bastionSubnetIpPrefix
-    sourcePortRange: '*'
-    destinationAddressPrefix: '*'
-    destinationPortRange: '3389'
+module mgmtArtifactsAndPolicyDeployment 'mgmt/mgmtArtifacts.bicep' = {
+  name: 'mgmtArtifactsAndPolicyDeployment'
+  scope: rg
+  params: {
+    deployBastion: deployBastion
+    bastionHostName: bastionHostName
+    networkSecurityGroupName: networkSecurityGroupName
+    subnetName: subnetName
+    virtualNetworkName: virtualNetworkName
+    location: location
   }
 }
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-  name: virtualNetworkName
-  location: location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        addressPrefix
-      ]
-    }
-    subnets: [
-      {
-        name: subnetName
-        properties: {
-          addressPrefix: subnetAddressPrefix
-          privateEndpointNetworkPolicies: 'Enabled'
-          privateLinkServiceNetworkPolicies: 'Enabled'
-        }
-      }
-      {
-        name: 'AzureBastionSubnet'
-        properties: {
-          addressPrefix: bastionSubnetIpPrefix
-        }
-      }
-    ]
+module clientVm 'clientVm/clientVm.bicep' = {
+  name: 'clientVmDeployment'
+  scope: rg
+  params: {
+     spnClientId: spnClientId
+     spnClientSecret: spnClientSecret
+     spnTenantId: spnTenantId
+     spnObjectId: spnObjectId
+     customLocationRPOID: customLocationRPOID
+     deployBastion: deployBastion
+     templateBaseUrl: templateBaseUrl
+     windowsAdminPassword: windowsAdminPassword
+     windowsAdminUsername: windowsAdminUsername
+     adxClusterName: adxClusterName
+     githubAccount: githubAccount
+     githubBranch: githubBranch
+     kubernetesDistribution: kubernetesDistribution
+     location: location
+     namingGuid: namingGuid
+     rdpPort: rdpPort
+     resourceTags: resourceTags
+     subnetName: subnetName
+     subscriptionId: subscriptionId
+     virtualNetworkName: virtualNetworkName
+     vmName: vmName
+     vmSize: vmSize
+     windowsNode: windowsNode
+     windowsOSVersion: windowsOSVersion
   }
-}
-
-resource publicIpAddress 'Microsoft.Network/publicIpAddresses@2022-07-01' = {
-  name: publicIpAddressName
-  location: location
-  properties: {
-    publicIPAllocationMethod: 'Static'
-    publicIPAddressVersion: 'IPv4'
-    idleTimeoutInMinutes: 4
-  }
-  sku: {
-    name: ((!deployBastion) ? 'Basic' : 'Standard')
-  }
-}
-
-resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' = {
-  name: vmName
-  location: location
-  tags: resourceTags
-  properties: {
-    hardwareProfile: {
-      vmSize: vmSize
-    }
-    storageProfile: {
-      osDisk: {
-        name: '${vmName}-OSDisk'
-        caching: 'ReadWrite'
-        createOption: 'fromImage'
-        managedDisk: {
-          storageAccountType: osDiskType
-        }
-      }
-      imageReference: {
-        publisher: 'MicrosoftWindowsServer'
-        offer: 'WindowsServer'
-        sku: windowsOSVersion
-        version: 'latest'
-      }
-    }
-    networkProfile: {
-      networkInterfaces: [
-        {
-          id: networkInterface.id
-        }
-      ]
-    }
-    osProfile: {
-      computerName: vmName
-      adminUsername: windowsAdminUsername
-      adminPassword: windowsAdminPassword
-      windowsConfiguration: {
-        provisionVMAgent: true
-        enableAutomaticUpdates: false
-      }
-    }
-  }
-}
-
-resource Bootstrap 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
-  parent: vm
-  name: 'Bootstrap'
-  location: location
-  tags: {
-    displayName: 'Run Bootstrap'
-  }
-  properties: {
-    publisher: 'Microsoft.Compute'
-    type: 'CustomScriptExtension'
-    typeHandlerVersion: '1.10'
-    autoUpgradeMinorVersion: true
-    protectedSettings: {
-      fileUris: [
-        uri(templateBaseUrl, 'artifacts/PowerShell/Bootstrap.ps1')
-      ]
-      commandToExecute: 'powershell.exe -ExecutionPolicy Unrestricted -File Bootstrap.ps1 -adminUsername ${windowsAdminUsername} -adminPassword ${windowsAdminPassword} -spnClientId ${spnClientId} -spnClientSecret ${spnClientSecret} -spnTenantId ${spnTenantId} -subscriptionId ${subscriptionId} -resourceGroup ${resourceGroup().name} -location ${location} -kubernetesDistribution ${kubernetesDistribution} -windowsNode ${windowsNode} -templateBaseUrl ${templateBaseUrl} -customLocationRPOID ${customLocationRPOID} -spnObjectId ${spnObjectId} -gitHubAccount ${githubAccount} -githubBranch ${githubBranch} -adxClusterName ${adxClusterName} -rdpPort ${rdpPort}'
-    }
-  }
-}
-
-resource InstallWindowsFeatures 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
-  parent: vm
-  name: 'InstallWindowsFeatures'
-  dependsOn: [
-    Bootstrap
-  ]
-  location: location
-  properties: {
-    publisher: 'Microsoft.Powershell'
-    type: 'DSC'
-    typeHandlerVersion: '2.77'
-    autoUpgradeMinorVersion: true
-    settings: {
-      wmfVersion: 'latest'
-      configuration: {
-        url: uri(templateBaseUrl, 'artifacts/Settings/DSCInstallWindowsFeatures.zip')
-        script: 'DSCInstallWindowsFeatures.ps1'
-        function: 'InstallWindowsFeatures'
-      }
-    }
-  }
-}
-
-resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = if (deployBastion) {
-  name: bastionName
-  location: location
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'IpConf'
-        properties: {
-          subnet: {
-            id: bastionSubnetRef
-          }
-          publicIPAddress: {
-            id: publicIpAddress.id
-          }
-        }
-      }
-    ]
-  }
-  dependsOn: [
-    virtualNetwork
-
-  ]
 }
 
 module storageAccount 'storage/storageAccount.bicep' = {
   name: 'storageAccount'
+  scope: rg
   params: {
     storageAccountName: aioStorageAccountName
     location: location
@@ -327,6 +177,7 @@ module storageAccount 'storage/storageAccount.bicep' = {
 
 module eventHub 'data/eventHub.bicep' = {
   name: 'eventHub'
+  scope: rg
   params: {
     eventHubName: eventHubName
     eventHubNamespaceName: eventHubNamespaceName
@@ -338,6 +189,7 @@ module eventHub 'data/eventHub.bicep' = {
 
 module eventGrid 'data/eventGrid.bicep' = {
   name: 'eventGrid'
+  scope: rg
   params: {
     eventGridNamespaceName: eventGridNamespaceName
     eventHubResourceId: eventHub.outputs.eventHubResourceId
@@ -350,6 +202,7 @@ module eventGrid 'data/eventGrid.bicep' = {
 
 module adxCluster 'data/dataExplorer.bicep' = {
   name: 'dataExplorer'
+  scope: rg
   params: {
     adxClusterName: adxClusterName
     location: location
@@ -362,6 +215,7 @@ module adxCluster 'data/dataExplorer.bicep' = {
 
 module keyVault 'data/keyVault.bicep' = {
   name: 'keyVault'
+  scope: rg
   params: {
     tenantId: spnTenantId
     akvName: akvName
@@ -370,5 +224,4 @@ module keyVault 'data/keyVault.bicep' = {
 }
 
 output windowsAdminUsername string = windowsAdminUsername
-output publicIP string = concat(publicIpAddress.properties.ipAddress)
 output adxEndpoint string = adxCluster.outputs.adxEndpoint
