@@ -7,6 +7,9 @@ param subnetName string = 'Subnet'
 @description('Name of the Network Security Group')
 param networkSecurityGroupName string = 'AIO-Demo-NSG'
 
+@description('Name of the Bastion Network Security Group')
+param bastionNetworkSecurityGroupName string = 'AIO-Bastion-NSG'
+
 @description('Location for all resources.')
 param location string = resourceGroup().location
 
@@ -35,19 +38,37 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
         addressPrefix
       ]
     }
-    subnets: [
+    subnets: deployBastion ? [
       {
         name: subnetName
         properties: {
           addressPrefix: subnetAddressPrefix
           privateEndpointNetworkPolicies: 'Enabled'
           privateLinkServiceNetworkPolicies: 'Enabled'
+          networkSecurityGroup: {
+            id: networkSecurityGroup.id
+          }
         }
       }
       {
         name: 'AzureBastionSubnet'
         properties: {
           addressPrefix: bastionSubnetIpPrefix
+          networkSecurityGroup: {
+            id: bastionNetworkSecurityGroup.id
+          }
+        }
+      }
+    ] : [
+      {
+        name: subnetName
+        properties: {
+          addressPrefix: subnetAddressPrefix
+          privateEndpointNetworkPolicies: 'Enabled'
+          privateLinkServiceNetworkPolicies: 'Enabled'
+          networkSecurityGroup: {
+            id: networkSecurityGroup.id
+          }
         }
       }
     ]
@@ -60,7 +81,7 @@ resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2019-02-0
 }
 
 
-resource networkSecurityGroupName_allow_RDP_3389 'Microsoft.Network/networkSecurityGroups/securityRules@2022-05-01' = if (deployBastion) {
+/*resource networkSecurityGroupName_allow_RDP_3389 'Microsoft.Network/networkSecurityGroups/securityRules@2022-05-01' = if (deployBastion) {
   parent: networkSecurityGroup
   name: 'allow_RDP_3389'
   properties: {
@@ -73,7 +94,7 @@ resource networkSecurityGroupName_allow_RDP_3389 'Microsoft.Network/networkSecur
     destinationAddressPrefix: '*'
     destinationPortRange: '3389'
   }
-}
+}*/
 
 resource publicIpAddress 'Microsoft.Network/publicIpAddresses@2022-07-01' = if (deployBastion == true) {
   name: publicIpAddressName
@@ -85,6 +106,131 @@ resource publicIpAddress 'Microsoft.Network/publicIpAddresses@2022-07-01' = if (
   }
   sku: {
     name: ((!deployBastion) ? 'Basic' : 'Standard')
+  }
+}
+
+resource bastionNetworkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2022-01-01' = if (deployBastion == true) {
+  name: bastionNetworkSecurityGroupName
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'bastion_allow_https_inbound'
+        properties: {
+          priority: 1010
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: 'Internet'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'bastion_allow_gateway_manager_inbound'
+        properties: {
+          priority: 1011
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: 'GatewayManager'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'bastion_allow_load_balancer_inbound'
+        properties: {
+          priority: 1012
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'bastion_allow_host_comms'
+        properties: {
+          priority: 1013
+          protocol: '*'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRanges: [
+            '8080'
+            '5701'
+          ]
+        }
+      }
+      {
+        name: 'bastion_allow_ssh_rdp_outbound'
+        properties: {
+          priority: 1014
+          protocol: '*'
+          access: 'Allow'
+          direction: 'Outbound'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRanges: [
+            '22'
+            '3389'
+          ]
+        }
+      }
+      {
+        name: 'bastion_allow_azure_cloud_outbound'
+        properties: {
+          priority: 1015
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Outbound'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'AzureCloud'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'bastion_allow_bastion_comms'
+        properties: {
+          priority: 1016
+          protocol: '*'
+          access: 'Allow'
+          direction: 'Outbound'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRanges: [
+            '8080'
+            '5701'
+          ]
+        }
+      }
+      {
+        name: 'bastion_allow_get_session_info'
+        properties: {
+          priority: 1017
+          protocol: '*'
+          access: 'Allow'
+          direction: 'Outbound'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'Internet'
+          destinationPortRanges: [
+            '80'
+            '443'
+          ]
+        }
+      }
+    ]
   }
 }
 
@@ -108,6 +254,5 @@ resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = if (deployBastion
   }
   dependsOn: [
     virtualNetwork
-
   ]
 }
