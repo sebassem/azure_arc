@@ -1,6 +1,5 @@
 if ($null -ne $env:AZURE_RESOURCE_GROUP){
     $resourceGroup  = $env:AZURE_RESOURCE_GROUP
-    $adxClusterName = $env:ADX_CLUSTER_NAME
     Select-AzSubscription -SubscriptionId $env:AZURE_SUBSCRIPTION_ID | out-null
     $rdpPort = $env:JS_RDP_PORT
 }
