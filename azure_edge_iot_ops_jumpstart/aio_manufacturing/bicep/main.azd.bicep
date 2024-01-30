@@ -138,30 +138,30 @@ module clientVm 'clientVm/clientVm.bicep' = {
   name: 'clientVmDeployment'
   scope: rg
   params: {
-     spnClientId: spnClientId
-     spnClientSecret: spnClientSecret
-     spnTenantId: spnTenantId
-     spnObjectId: spnObjectId
-     customLocationRPOID: customLocationRPOID
-     deployBastion: deployBastion
-     templateBaseUrl: templateBaseUrl
-     windowsAdminPassword: windowsAdminPassword
-     windowsAdminUsername: windowsAdminUsername
-     adxClusterName: adxClusterName
-     githubAccount: githubAccount
-     githubBranch: githubBranch
-     kubernetesDistribution: kubernetesDistribution
-     location: location
-     namingGuid: namingGuid
-     rdpPort: rdpPort
-     resourceTags: resourceTags
-     subnetName: subnetName
-     subscriptionId: subscriptionId
-     virtualNetworkName: virtualNetworkName
-     vmName: vmName
-     vmSize: vmSize
-     windowsNode: windowsNode
-     windowsOSVersion: windowsOSVersion
+    spnClientId: spnClientId
+    spnClientSecret: spnClientSecret
+    spnTenantId: spnTenantId
+    spnObjectId: spnObjectId
+    customLocationRPOID: customLocationRPOID
+    deployBastion: deployBastion
+    templateBaseUrl: templateBaseUrl
+    windowsAdminPassword: windowsAdminPassword
+    windowsAdminUsername: windowsAdminUsername
+    adxClusterName: adxClusterName
+    githubAccount: githubAccount
+    githubBranch: githubBranch
+    kubernetesDistribution: kubernetesDistribution
+    location: location
+    namingGuid: namingGuid
+    rdpPort: rdpPort
+    resourceTags: resourceTags
+    subnetName: subnetName
+    subscriptionId: subscriptionId
+    virtualNetworkName: virtualNetworkName
+    vmName: vmName
+    vmSize: vmSize
+    windowsNode: windowsNode
+    windowsOSVersion: windowsOSVersion
   }
 }
 
@@ -223,5 +223,8 @@ module keyVault 'data/keyVault.bicep' = {
   }
 }
 
+output AZURE_RESOURCE_GROUP string = rg.name
+output RDP_PORT string = rdpPort
+output AZURE_TENANT_ID string = tenant().tenantId
 output windowsAdminUsername string = windowsAdminUsername
 output adxEndpoint string = adxCluster.outputs.adxEndpoint
