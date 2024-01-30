@@ -137,6 +137,9 @@ module mgmtArtifactsAndPolicyDeployment 'mgmt/mgmtArtifacts.bicep' = {
 module clientVm 'clientVm/clientVm.bicep' = {
   name: 'clientVmDeployment'
   scope: rg
+  dependsOn: [
+    mgmtArtifactsAndPolicyDeployment
+  ]
   params: {
     spnClientId: spnClientId
     spnClientSecret: spnClientSecret
