@@ -262,7 +262,7 @@
                 "settings": {
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash installCAPI.sh', ' ', parameters('adminUsername'), ' ', parameters('spnClientId'), ' ', parameters('spnClientSecret'), ' ', parameters('spnTenantId'), ' ', parameters('vmName'), ' ', parameters('azureLocation'), ' ', parameters('stagingStorageAccountName'), ' ', parameters('logAnalyticsWorkspace'), ' ', parameters('capiArcDataClusterName'), ' ', parameters('templateBaseUrl'), ' ', parameters('flavor'))]",
+                    "commandToExecute": "[concat('bash installCAPI.sh', ' ', parameters('adminUsername'), ' ', parameters('spnClientId'), ' ', parameters('spnClientSecret'), ' ', parameters('spnTenantId'), ' ', parameters('vmName'), ' ', parameters('azureLocation'), ' ', parameters('stagingStorageAccountName'), ' ', parameters('logAnalyticsWorkspace'), ' ', parameters('capiArcDataClusterName'), ' ', parameters('templateBaseUrl'), ' ', parameters('flavor'),  ' ', subscription().subscriptionId)]",
                     "fileUris": [ "[concat(parameters('templateBaseUrl'), 'artifacts/installCAPI.sh')]" ]
                 }
             }

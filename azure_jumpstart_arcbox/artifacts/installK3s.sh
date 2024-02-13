@@ -20,6 +20,7 @@ echo $stagingStorageAccountName:$7 | awk '{print substr($1,2); }' >> vars.sh
 echo $logAnalyticsWorkspace:$8 | awk '{print substr($1,2); }' >> vars.sh
 echo $deployBastion:$9 | awk '{print substr($1,2); }' >> vars.sh
 echo $templateBaseUrl:${10} | awk '{print substr($1,2); }' >> vars.sh
+echo $subscriptionId:${11} | awk '{print substr($1,2); }' >> vars.sh
 
 sed -i '2s/^/export adminUsername=/' vars.sh
 sed -i '3s/^/export SPN_CLIENT_ID=/' vars.sh
@@ -31,6 +32,7 @@ sed -i '8s/^/export stagingStorageAccountName=/' vars.sh
 sed -i '9s/^/export logAnalyticsWorkspace=/' vars.sh
 sed -i '10s/^/export deployBastion=/' vars.sh
 sed -i '11s/^/export templateBaseUrl=/' vars.sh
+sed -i '12s/^/export subscriptionId=/' vars.sh
 
 export K3S_VERSION="1.28.2+k3s1" # Do not change!
 
@@ -78,7 +80,6 @@ sudo -u $adminUsername az extension add --name k8s-extension
 echo ""
 echo "Log in to Azure"
 sudo -u $adminUsername az login --service-principal --username $SPN_CLIENT_ID --password=$SPN_CLIENT_SECRET --tenant $SPN_TENANT_ID
-subscriptionId=$(sudo -u $adminUsername az account show --query id --output tsv)
 sudo -u $adminUsername az account set -s $subscriptionId
 az -v
 echo ""

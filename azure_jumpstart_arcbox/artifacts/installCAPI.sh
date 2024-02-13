@@ -21,6 +21,7 @@ echo $logAnalyticsWorkspace:$8 | awk '{print substr($1,2); }' >> vars.sh
 echo $capiArcDataClusterName:$9 | awk '{print substr($1,2); }' >> vars.sh
 echo $templateBaseUrl:${10} | awk '{print substr($1,2); }' >> vars.sh
 echo $flavor:${11} | awk '{print substr($1,2); }' >> vars.sh
+echo $subscriptionId:${12} | awk '{print substr($1,2); }' >> vars.sh
 sed -i '2s/^/export adminUsername=/' vars.sh
 sed -i '3s/^/export SPN_CLIENT_ID=/' vars.sh
 sed -i '4s/^/export SPN_CLIENT_SECRET=/' vars.sh
@@ -32,6 +33,7 @@ sed -i '9s/^/export logAnalyticsWorkspace=/' vars.sh
 sed -i '10s/^/export capiArcDataClusterName=/' vars.sh
 sed -i '11s/^/export templateBaseUrl=/' vars.sh
 sed -i '12s/^/export flavor=/' vars.sh
+sed -i '13s/^/export subscriptionId=/' vars.sh
 
 chmod +x vars.sh
 . ./vars.sh
@@ -52,7 +54,6 @@ sudo -u $adminUsername az extension add --name k8s-extension
 
 echo "Log in to Azure"
 sudo -u $adminUsername az login --service-principal --username $SPN_CLIENT_ID --password=$SPN_CLIENT_SECRET --tenant $SPN_TENANT_ID
-subscriptionId=$(sudo -u $adminUsername az account show --query id --output tsv)
 sudo -u $adminUsername az account set -s $subscriptionId
 export AZURE_RESOURCE_GROUP=$(sudo -u $adminUsername az resource list --query "[?name=='$stagingStorageAccountName']".[resourceGroup] --resource-type "Microsoft.Storage/storageAccounts" -o tsv)
 az -v
