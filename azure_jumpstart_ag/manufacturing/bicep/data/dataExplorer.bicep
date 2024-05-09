@@ -24,6 +24,12 @@ param eventHubNamespaceName string
 @description('The resource id of the Event Hub')
 param eventHubResourceId string
 
+@description('The name of the Azure Data Explorer database')
+param adxDBName string = 'manufacturing'
+
+@description('The name of the Azure Data Explorer Event Hub consumer group for staging data')
+param stagingDataCGName string = 'mqttdataemulator'
+
 @description('# of nodes')
 @minValue(1)
 @maxValue(2)
@@ -44,6 +50,23 @@ resource adxCluster 'Microsoft.Kusto/clusters@2023-05-02' = {
   }
 }
 
+resource manufacturingAdxDB 'Microsoft.Kusto/clusters/databases@2023-05-02' = {
+  parent: adxCluster
+  name: adxDBName
+  location: location
+  kind: 'ReadWrite'
+}
+
+resource assemblylineScript 'Microsoft.Kusto/clusters/databases/scripts@2023-05-02' = {
+  name: 'assemblylineScript'
+  parent: manufacturingAdxDB
+  properties: {
+    continueOnErrors: false
+    forceUpdateTag: 'string'
+    scriptContent: loadTextContent('script.kql')
+  }
+}
+
 resource azureEventHubsDataReceiverRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde'
   scope: tenant()
@@ -59,6 +82,27 @@ resource eventHubRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04
   properties: {
     roleDefinitionId: azureEventHubsDataReceiverRole.id
     principalId: adxCluster.identity.principalId
+  }
+}
+
+resource stagingDataConnection 'Microsoft.Kusto/clusters/databases/dataConnections@2023-08-15' = {
+  name: 'stagingDataConnection'
+  kind: 'EventHub'
+  dependsOn: [
+    assemblylineScript
+  ]
+  location: location
+  parent: manufacturingAdxDB
+  properties: {
+    managedIdentityResourceId: adxCluster.id
+    eventHubResourceId: eventHubResourceId
+    consumerGroup: stagingDataCGName
+    tableName: 'staging'
+    dataFormat: 'MULTIJSON'
+    mappingRuleName: 'staging_mapping'
+    eventSystemProperties: []
+    compression: 'None'
+    databaseRouting: 'Single'
   }
 }
 

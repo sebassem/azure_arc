@@ -63,7 +63,7 @@ param queueTTL int = 604800
 @description('The maximum number of client sessions per authentication name')
 param maximumClientSessionsPerAuthenticationName int = 100
 
-resource eventGrid 'Microsoft.EventGrid/namespaces@2023-06-01-preview' = {
+resource eventGrid 'Microsoft.EventGrid/namespaces@2023-12-15-preview' = {
   name: eventGridNamespaceName
   tags: resourceTags
   location: location
@@ -167,7 +167,6 @@ resource storageTopicSubscription 'Microsoft.EventGrid/topics/eventSubscriptions
     eventDeliverySchema: 'CloudEventSchemaV1_0'
   }
 }
-
 
 resource azureEventGridDataSenderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: 'd5a91429-5739-47e2-a06b-3470a27159e7'

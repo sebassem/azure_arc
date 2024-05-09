@@ -8,8 +8,8 @@ param spnClientSecret string
 @description('Azure AD tenant id for your service principal')
 param spnTenantId string
 
-//@description('Azure service principal object id')
-//param spnObjectId string
+@description('Azure service principal Object id')
+param spnObjectId string
 
 @description('Location for all resources')
 param location string = resourceGroup().location
@@ -39,15 +39,6 @@ param githubBranch string = 'ag_manufacturing'
 @description('Choice to deploy Bastion to connect to the client VM')
 param deployBastion bool = false
 
-@description('User github account where they have forked the repo https://github.com/microsoft/jumpstart-agora-apps')
-@minLength(1)
-param githubUser string
-
-//@description('GitHub Personal access token for the user account')
-//@minLength(1)
-//@secure()
-//param githubPAT string
-
 @description('Name of the Cloud VNet')
 param virtualNetworkNameCloud string = 'Ag-Vnet-Prod'
 
@@ -75,14 +66,14 @@ param akvNameSite1 string = 'agakv1${namingGuid}'
 @description('The name of the Key Vault for site 2')
 param akvNameSite2 string = 'agakv2${namingGuid}'
 
-@description('The name of the Azure Data Explorer Event Hub consumer group')
-param eventHubConsumerGroupName string = 'cgadx${namingGuid}'
-
-@description('The name of the Azure Data Explorer Event Hub production line consumer group')
-param eventHubConsumerGroupNamePl string = 'cgadxpl${namingGuid}'
+@description('The name of the Azure Data Explorer Event Hub consumer group for assemblybatteries')
+param stagingDataCGName string = 'mqttdataemulator'
 
 @description('Name of the storage account')
 param aioStorageAccountName string = 'aiostg${namingGuid}'
+
+@description('The name of ESA container in Storage Account')
+param stcontainerName string = 'esacontainer'
 
 @description('The name of the Azure Data Explorer cluster')
 param adxClusterName string = 'agadx${namingGuid}'
@@ -98,7 +89,10 @@ param acrName string = 'agacr${namingGuid}'
 @description('Override default RDP port using this parameter. Default is 3389. No changes will be made to the client VM.')
 param rdpPort string = '3389'
 
-var templateBaseUrl = 'https://raw.githubusercontent.com/${githubAccount}/azure_arc/${githubBranch}/azure_jumpstart_ag/manufacturing/'
+@description('The agora industry to be deployed')
+param industry string = 'manufacturing'
+
+var templateBaseUrl = 'https://raw.githubusercontent.com/${githubAccount}/azure_arc/${githubBranch}/azure_jumpstart_ag/'
 
 module mgmtArtifactsAndPolicyDeployment 'mgmt/mgmtArtifacts.bicep' = {
   name: 'mgmtArtifactsAndPolicyDeployment'
@@ -133,7 +127,7 @@ module clientVmDeployment 'clientVm/clientVm.bicep' = {
     windowsAdminPassword: windowsAdminPassword
     spnClientId: spnClientId
     spnClientSecret: spnClientSecret
-    //spnObjectId: spnObjectId
+    spnObjectId: spnObjectId
     spnTenantId: spnTenantId
     workspaceName: logAnalyticsWorkspaceName
     storageAccountName: storageAccountDeployment.outputs.storageAccountName
@@ -141,7 +135,6 @@ module clientVmDeployment 'clientVm/clientVm.bicep' = {
     deployBastion: deployBastion
     githubAccount: githubAccount
     githubBranch: githubBranch
-    githubUser: githubUser
     //githubPAT: githubPAT
     location: location
     subnetId: networkDeployment.outputs.innerLoopSubnetId
@@ -150,6 +143,9 @@ module clientVmDeployment 'clientVm/clientVm.bicep' = {
     namingGuid: namingGuid
     adxClusterName: adxClusterName
     customLocationRPOID: customLocationRPOID
+    industry: industry
+    aioStorageAccountName: aioStorageAccountName
+    stcontainerName: stcontainerName
   }
 }
 
@@ -159,8 +155,7 @@ module eventHub 'data/eventHub.bicep' = {
     eventHubName: eventHubName
     eventHubNamespaceName: eventHubNamespaceName
     location: location
-    eventHubConsumerGroupName: eventHubConsumerGroupName
-    eventHubConsumerGroupNamePl: eventHubConsumerGroupNamePl
+    stagingDataCGName: stagingDataCGName
   }
 }
 
@@ -170,6 +165,7 @@ module storageAccount 'storage/storageAccount.bicep' = {
     storageAccountName: aioStorageAccountName
     location: location
     storageQueueName: storageQueueName
+    stcontainerName: stcontainerName
   }
 }
 
@@ -211,6 +207,6 @@ module adx 'data/dataExplorer.bicep' = {
     eventHubResourceId: eventHub.outputs.eventHubResourceId
     eventHubName: eventHubName
     eventHubNamespaceName: eventHubNamespaceName
+    stagingDataCGName: stagingDataCGName
   }
 }
-
