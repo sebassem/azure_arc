@@ -593,8 +593,8 @@ function Deploy-AzArcK8s {
     }
     $VMnames = (Get-VM).Name
     foreach ($VM in $VMNames) {
-        $secret = $Env:spnClientSecret
-        $clientId = $Env:spnClientId
+        #$secret = $Env:spnClientSecret
+        #$clientId = $Env:spnClientId
         $tenantId = $Env:spnTenantId
         $location = $Env:azureLocation
         $subscriptionId = $env:subscriptionId
