@@ -597,6 +597,7 @@ function Deploy-AzArcK8s {
         $clientId = $Env:spnClientId
         $tenantId = $Env:spnTenantId
         $location = $Env:azureLocation
+        $subscriptionId = $env:subscriptionId
         $resourceGroup = $Env:resourceGroup
         $namingGuid = $Env:namingGuid
 
@@ -605,6 +606,7 @@ function Deploy-AzArcK8s {
             . C:\Deployment\Profile.ps1
             $hostname = hostname
             $namingGuid = $using:namingGuid
+            $subscriptionId = $using:subscriptionId
             $ProgressPreference = "SilentlyContinue"
             Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
             Install-Module Az.Resources -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
@@ -617,7 +619,8 @@ function Deploy-AzArcK8s {
             #$psCred = New-Object System.Management.Automation.PSCredential($using:clientId, $azurePassword)
             #Connect-AzAccount -Credential $psCred -TenantId $using:tenantId -ServicePrincipal -Subscription $using:subscriptionId
             Connect-AzAccount -Identity -Tenant $env:spntenantId -Subscription $env:subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
-
+            az login --identity --tenant $spnTenantId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
+            az account set -s $subscriptionId
             Write-Host "[$(Get-Date -Format t)] INFO: Arc-enabling $hostname server." -ForegroundColor Gray
             Redo-Command -ScriptBlock { Connect-AzConnectedMachine -ResourceGroupName $using:resourceGroup -Name "Ag-$hostname-Host" -Location $using:location }
 
