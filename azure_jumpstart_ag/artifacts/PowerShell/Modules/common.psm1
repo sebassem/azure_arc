@@ -598,11 +598,13 @@ function Deploy-AzArcK8s {
         $tenantId = $Env:spnTenantId
         $location = $Env:azureLocation
         $resourceGroup = $Env:resourceGroup
+        $namingGuid = $Env:namingGuid
 
         Invoke-Command -VMName $VM -Credential $Credentials -ScriptBlock {
             # Install prerequisites
             . C:\Deployment\Profile.ps1
             $hostname = hostname
+            $namingGuid = $using:namingGuid
             $ProgressPreference = "SilentlyContinue"
             Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
             Install-Module Az.Resources -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
@@ -629,8 +631,10 @@ function Deploy-AzArcK8s {
             $retryDelay = 30  # Delay in seconds between retries
 
             for ($retry = 1; $retry -le $retryCount; $retry++) {
-                $return = Connect-AksEdgeArc -JsonConfigFilePath $deploymentPath
-                if ($return -ne "OK") {
+                $clusterName = "Ag-ArcK8s-$hostname-$namingGuid"
+                #$return = Connect-AksEdgeArc -JsonConfigFilePath $deploymentPath
+                az connectedk8s connect -n $clusterName -l $using:Location -g $using:ResourceGroupName
+                <#if ($return -ne "OK") {
                     Write-Output "Failed to onboard AKS Edge Essentials cluster to Azure Arc. Retrying (Attempt $retry of $retryCount)..."
                     if ($retry -lt $retryCount) {
                         Start-Sleep -Seconds $retryDelay  # Wait before retrying
@@ -643,9 +647,8 @@ function Deploy-AzArcK8s {
                 else {
                     Write-Output "Successfully onboarded AKS Edge Essentials cluster to Azure Arc."
                     break  # Exit the loop if the connection is successful
-                }
+                }#>
             }
-
 
         } 2>&1 | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\ArcConnectivity.log")
     }
