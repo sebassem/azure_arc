@@ -23,9 +23,10 @@ function Deploy-AzCLI {
 }
 
 function Deploy-AzPowerShell {
-    $azurePassword = ConvertTo-SecureString $Env:spnClientSecret -AsPlainText -Force
-    $psCred = New-Object System.Management.Automation.PSCredential($Env:spnClientID , $azurePassword)
-    Connect-AzAccount -Credential $psCred -TenantId $Env:spnTenantId -ServicePrincipal -Subscription $subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
+    #$azurePassword = ConvertTo-SecureString $Env:spnClientSecret -AsPlainText -Force
+    #$psCred = New-Object System.Management.Automation.PSCredential($Env:spnClientID , $azurePassword)
+    #Connect-AzAccount -Credential $psCred -TenantId $Env:spnTenantId -ServicePrincipal -Subscription $subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
+    Connect-AzAccount -Identity -Tenant $env:spntenantId -Subscription $env:subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
 
     # Install PowerShell modules
     if ($AgConfig.PowerShellModules.Count -ne 0) {
@@ -610,9 +611,11 @@ function Deploy-AzArcK8s {
             Install-Module Az.ConnectedMachine -Force -AllowClobber -ErrorAction Stop
 
             # Connect servers to Arc
-            $azurePassword = ConvertTo-SecureString $using:secret -AsPlainText -Force
-            $psCred = New-Object System.Management.Automation.PSCredential($using:clientId, $azurePassword)
-            Connect-AzAccount -Credential $psCred -TenantId $using:tenantId -ServicePrincipal -Subscription $using:subscriptionId
+            #$azurePassword = ConvertTo-SecureString $using:secret -AsPlainText -Force
+            #$psCred = New-Object System.Management.Automation.PSCredential($using:clientId, $azurePassword)
+            #Connect-AzAccount -Credential $psCred -TenantId $using:tenantId -ServicePrincipal -Subscription $using:subscriptionId
+            Connect-AzAccount -Identity -Tenant $env:spntenantId -Subscription $env:subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
+
             Write-Host "[$(Get-Date -Format t)] INFO: Arc-enabling $hostname server." -ForegroundColor Gray
             Redo-Command -ScriptBlock { Connect-AzConnectedMachine -ResourceGroupName $using:resourceGroup -Name "Ag-$hostname-Host" -Location $using:location }
 
@@ -716,7 +719,8 @@ function Deploy-ClusterFluxExtension {
                 }
             }
 
-            az login --service-principal --username $Env:spnClientID --password=$Env:spnClientSecret --tenant $Env:spnTenantId
+            #az login --service-principal --username $Env:spnClientID --password=$Env:spnClientSecret --tenant $Env:spnTenantId
+            az login --identity --tenant $spnTenantId
             $extension = az k8s-extension list --cluster-name $resourceName --resource-group $Env:resourceGroup --cluster-type $ClusterType --output json | ConvertFrom-Json
             $extension = $extension | Where-Object extensionType -eq 'microsoft.flux'
 

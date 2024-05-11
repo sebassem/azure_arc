@@ -26,14 +26,15 @@ param (
   [string]$industry,
   [string]$customLocationRPOID,
   [string]$aioStorageAccountName,
-  [string]$stcontainerName
+  [string]$stcontainerName,
+  [string]$mgmtkvName
 )
 
 ##############################################################
 # Inject ARM template parameters as environment variables
 ##############################################################
 [System.Environment]::SetEnvironmentVariable('adminUsername', $adminUsername, [System.EnvironmentVariableTarget]::Machine)
-[System.Environment]::SetEnvironmentVariable('adminPassword', $adminPassword, [System.EnvironmentVariableTarget]::Machine)
+#[System.Environment]::SetEnvironmentVariable('adminPassword', $adminPassword, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('spnClientID', $spnClientId, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('spnClientSecret', $spnClientSecret, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('spnObjectID', $spnObjectId, [System.EnvironmentVariableTarget]::Machine)
@@ -64,6 +65,7 @@ param (
 [System.Environment]::SetEnvironmentVariable('customLocationRPOID', $customLocationRPOID, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('aioStorageAccountName', $aioStorageAccountName, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('stcontainerName', $stcontainerName, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('mgmtkvName', $mgmtkvName, [System.EnvironmentVariableTarget]::Machine)
 
 $ErrorActionPreference = 'Continue'
 
@@ -154,6 +156,41 @@ $disk | Initialize-Disk -PartitionStyle MBR -PassThru |
         New-Partition -UseMaximumSize -DriveLetter $AgConfig.HostVMDrive |
         Format-Volume -FileSystem NTFS -NewFileSystemLabel "VMs" -Confirm:$false -Force
 
+
+##############################################################
+# Configuring secrets
+##############################################################
+# Installing PowerShell Modules
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+
+Install-Module -Name Microsoft.PowerShell.PSResourceGet -Force
+$modules = @("Microsoft.PowerShell.SecretManagement", "Az.KeyVault")
+
+foreach ($module in $modules) {
+    Install-PSResource -Name $module -Scope AllUsers -Quiet -AcceptLicense -TrustRepository
+}
+# Add Key Vault Secrets
+Connect-AzAccount -Identity
+
+$KeyVault = Get-AzKeyVault -ResourceGroupName $env:resourceGroup -VaultName $env:mgmtkvName
+
+# Set Key Vault Name as an environment variable (used by DevOps flavor)
+[System.Environment]::SetEnvironmentVariable('keyVaultName', $KeyVault.VaultName, [System.EnvironmentVariableTarget]::Machine)
+
+# Import required module
+Import-Module Microsoft.PowerShell.SecretManagement
+
+# Register the Azure Key Vault as a secret vault if not already registered
+# Ensure you have installed the SecretManagement and SecretStore modules along with the Key Vault extension
+
+if (-not (Get-SecretVault -Name $KeyVault.VaultName -ErrorAction Ignore)) {
+    Register-SecretVault -Name $KeyVault.VaultName -ModuleName Az.KeyVault -VaultParameters @{ AZKVaultName = $KeyVault.VaultName } -DefaultVault
+}
+
+Set-Secret -Name adminPassword -Secret test $adminPassword
+
+Write-Output "Added the following secrets to Azure Key Vault"
+Get-SecretInfo
 ##############################################################
 # Creating Ag paths
 ##############################################################

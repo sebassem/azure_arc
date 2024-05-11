@@ -92,6 +92,9 @@ param rdpPort string = '3389'
 @description('The agora industry to be deployed')
 param industry string = 'manufacturing'
 
+@description('Name of the key vault for management resources')
+param mgmtkvName string = 'kvmgmtag${uniqueString(resourceGroup().id)}'
+
 var templateBaseUrl = 'https://raw.githubusercontent.com/${githubAccount}/azure_arc/${githubBranch}/azure_jumpstart_ag/'
 
 module mgmtArtifactsAndPolicyDeployment 'mgmt/mgmtArtifacts.bicep' = {
@@ -135,7 +138,7 @@ module clientVmDeployment 'clientVm/clientVm.bicep' = {
     deployBastion: deployBastion
     githubAccount: githubAccount
     githubBranch: githubBranch
-    //githubPAT: githubPAT
+    mgmtkvName: mgmtkvName
     location: location
     subnetId: networkDeployment.outputs.innerLoopSubnetId
     acrName: acrName
@@ -146,6 +149,15 @@ module clientVmDeployment 'clientVm/clientVm.bicep' = {
     industry: industry
     aioStorageAccountName: aioStorageAccountName
     stcontainerName: stcontainerName
+  }
+}
+
+module mgmtkeyVault 'br/public:avm/res/key-vault/vault:0.5.1' = {
+  name: 'mgmykeyVaultDeployment'
+  params: {
+    name: mgmtkvName
+    enablePurgeProtection: false
+    location: location
   }
 }
 
