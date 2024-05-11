@@ -414,8 +414,8 @@ function Deploy-VirtualizationInfrastructure {
             "ResourceGroupName-null"      = $using:resourceGroup
             "SubscriptionId-null"         = $using:subscriptionId
             "TenantId-null"               = $using:spnTenantId
-            "ClientId-null"               = $using:spnClientId
-            "ClientSecret-null"           = $using:spnClientSecret
+            #"ClientId-null"               = $using:spnClientId
+            #"ClientSecret-null"           = $using:spnClientSecret
         }
 
         ###################################################
@@ -607,6 +607,8 @@ function Deploy-AzArcK8s {
             $hostname = hostname
             $namingGuid = $using:namingGuid
             $subscriptionId = $using:subscriptionId
+            $resourceGroup = $using:resourceGroup
+            $location = $using:location
             $ProgressPreference = "SilentlyContinue"
             Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
             Install-Module Az.Resources -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
@@ -619,41 +621,31 @@ function Deploy-AzArcK8s {
             #$psCred = New-Object System.Management.Automation.PSCredential($using:clientId, $azurePassword)
             #Connect-AzAccount -Credential $psCred -TenantId $using:tenantId -ServicePrincipal -Subscription $using:subscriptionId
             Connect-AzAccount -Identity -Tenant $env:spntenantId -Subscription $env:subscriptionId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
-            az login --identity --tenant $spnTenantId | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
+            az login --identity | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
             az account set -s $subscriptionId
             Write-Host "[$(Get-Date -Format t)] INFO: Arc-enabling $hostname server." -ForegroundColor Gray
-            Redo-Command -ScriptBlock { Connect-AzConnectedMachine -ResourceGroupName $using:resourceGroup -Name "Ag-$hostname-Host" -Location $using:location }
+            Redo-Command -ScriptBlock { Connect-AzConnectedMachine -ResourceGroupName $resourceGroup -Name "Ag-$hostname-Host" -Location $using:location }
 
             # Connect clusters to Arc
-            $deploymentPath = "C:\Deployment\config.json"
+            #$deploymentPath = "C:\Deployment\config.json"
             Write-Host "[$(Get-Date -Format t)] INFO: Arc-enabling $hostname AKS Edge Essentials cluster." -ForegroundColor Gray
 
-            kubectl get svc
+            #kubectl get svc
 
-            $retryCount = 5  # Number of times to retry the operation
-            $retryDelay = 30  # Delay in seconds between retries
-
-            for ($retry = 1; $retry -le $retryCount; $retry++) {
-                $clusterName = "Ag-ArcK8s-$hostname-$namingGuid"
-                #$return = Connect-AksEdgeArc -JsonConfigFilePath $deploymentPath
-                az connectedk8s connect -n $clusterName -l $using:Location -g $using:ResourceGroupName
-                <#if ($return -ne "OK") {
-                    Write-Output "Failed to onboard AKS Edge Essentials cluster to Azure Arc. Retrying (Attempt $retry of $retryCount)..."
-                    if ($retry -lt $retryCount) {
-                        Start-Sleep -Seconds $retryDelay  # Wait before retrying
-                    }
-                    else {
-                        Write-Output "Exceeded maximum retry attempts. Exiting."
-                        break  # Exit the loop after the maximum number of retries
-                    }
-                }
-                else {
-                    Write-Output "Successfully onboarded AKS Edge Essentials cluster to Azure Arc."
-                    break  # Exit the loop if the connection is successful
-                }#>
-            }
+            #$retryCount = 5  # Number of times to retry the operation
+            #$retryDelay = 30  # Delay in seconds between retries
 
         } 2>&1 | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\ArcConnectivity.log")
+
+        foreach ($cluster in $AgConfig.SiteConfig.GetEnumerator()) {
+            az extension add --name connectedk8s --version 1.3.17
+            $clusterName = $cluster.Name.ToLower()
+            Write-Host "[$(Get-Date -Format t)] INFO: Connecting $clusterName cluster to Azure Arc" -ForegroundColor Gray
+            Write-Host "`n"
+            kubectx $clusterName
+            $arcClusterName = $AgConfig.SiteConfig[$clusterName].ArcClusterName + "-$namingGuid"
+            az connectedk8s connect -n $arcClusterName -l $location -g $resourceGroup
+        }
     }
 
     #####################################################################
@@ -726,7 +718,7 @@ function Deploy-ClusterFluxExtension {
             }
 
             #az login --service-principal --username $Env:spnClientID --password=$Env:spnClientSecret --tenant $Env:spnTenantId
-            az login --identity --tenant $spnTenantId
+            az login --identity
             $extension = az k8s-extension list --cluster-name $resourceName --resource-group $Env:resourceGroup --cluster-type $ClusterType --output json | ConvertFrom-Json
             $extension = $extension | Where-Object extensionType -eq 'microsoft.flux'
 
