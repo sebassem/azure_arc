@@ -414,8 +414,8 @@ function Deploy-VirtualizationInfrastructure {
             "ResourceGroupName-null"      = $using:resourceGroup
             "SubscriptionId-null"         = $using:subscriptionId
             "TenantId-null"               = $using:spnTenantId
-            #"ClientId-null"               = $using:spnClientId
-            #"ClientSecret-null"           = $using:spnClientSecret
+            "ClientId-null"               = $using:spnClientId
+            "ClientSecret-null"           = $using:spnClientSecret
         }
 
         ###################################################
