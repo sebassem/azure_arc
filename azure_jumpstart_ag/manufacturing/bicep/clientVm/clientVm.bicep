@@ -242,3 +242,5 @@ resource vmRoleAssignment_Owner 'Microsoft.Authorization/roleAssignments@2022-04
 
 output adminUsername string = windowsAdminUsername
 output publicIP string = deployBastion == false ? concat(publicIpAddress.properties.ipAddress) : ''
+output principalId string = vm.identity.principalId
+output id string = vm.id

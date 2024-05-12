@@ -222,3 +222,12 @@ module adx 'data/dataExplorer.bicep' = {
     stagingDataCGName: stagingDataCGName
   }
 }
+
+module subRoleAssignment 'mgmt/subRoleAssignment.bicep' = {
+  name: 'subRoleAssignmentDeployment'
+  scope: subscription()
+  params:{
+    clientVMId: clientVmDeployment.outputs.id
+    clientVMPrincipalId: clientVmDeployment.outputs.principalId
+  }
+}
