@@ -19,8 +19,8 @@ $global:githubAccount = $Env:githubAccount
 $global:githubBranch = $Env:githubBranch
 $global:resourceGroup = $Env:resourceGroup
 $global:azureLocation = $Env:azureLocation
-$global:spnClientId = $Env:spnClientId
-$global:spnClientSecret = $Env:spnClientSecret
+#$global:spnClientId = $Env:spnClientId
+#$global:spnClientSecret = $Env:spnClientSecret
 $global:spnTenantId = $Env:spnTenantId
 $global:subscriptionId = $Env:subscriptionId
 $global:adminUsername = $Env:adminUsername
@@ -56,6 +56,7 @@ if ($industry -eq "retail") {
 Import-Module "$AgPowerShellDir\common.psm1" -Force -DisableNameChecking
 Import-Module "$AgPowerShellDir\retail.psm1" -Force -DisableNameChecking
 Import-Module "$AgPowerShellDir\manufacturing.psm1" -Force -DisableNameChecking
+Import-Module Microsoft.PowerShell.SecretManagement
 
 Start-Transcript -Path ($AgConfig.AgDirectories["AgLogsDir"] + "\AgLogonScript.log")
 Write-Header "Executing Jumpstart Agora automation scripts"
