@@ -610,11 +610,11 @@ function Deploy-AzArcK8s {
             $resourceGroup = $using:resourceGroup
             $location = $using:location
             $ProgressPreference = "SilentlyContinue"
-            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-            Install-Module Az.Resources -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
-            Install-Module Az.Accounts -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
-            Install-Module Az.ConnectedKubernetes -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
-            Install-Module Az.ConnectedMachine -Force -AllowClobber -ErrorAction Stop
+            #Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+            #Install-Module Az.Resources -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+            #Install-Module Az.Accounts -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+            #Install-Module Az.ConnectedKubernetes -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+            #Install-Module Az.ConnectedMachine -Force -AllowClobber -ErrorAction Stop
 
             # Connect servers to Arc
             #$azurePassword = ConvertTo-SecureString $using:secret -AsPlainText -Force
@@ -641,6 +641,7 @@ function Deploy-AzArcK8s {
     foreach ($cluster in $AgConfig.SiteConfig.GetEnumerator()) {
         az extension add --name connectedk8s --version 1.3.17
         $clusterName = $cluster.Name.ToLower()
+        az login --identity | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
         Write-Host "[$(Get-Date -Format t)] INFO: Connecting $clusterName cluster to Azure Arc" -ForegroundColor Gray
         Write-Host "`n"
         kubectx $clusterName

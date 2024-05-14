@@ -138,7 +138,7 @@ function Deploy-AIO {
     # Preparing clusters for aio
     ##############################################################
     $VMnames = $AgConfig.SiteConfig.GetEnumerator().Name.ToLower()
-
+    az login --identity | Out-File -Append -FilePath ($AgConfig.AgDirectories["AgLogsDir"] + "\AzPowerShell.log")
     Invoke-Command -VMName $VMnames -Credential $Credentials -ScriptBlock {
         $ProgressPreference = "SilentlyContinue"
         ###########################################
